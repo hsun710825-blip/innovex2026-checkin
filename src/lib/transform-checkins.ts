@@ -1,9 +1,8 @@
 import {
-  ALL_DAYS_ROSTER,
   COPIED_TO_605,
   EVENT_LOCATION,
   EVENT_SHEETS,
-  MOVED_TO_EXHIBITION,
+  getDaysForPerson,
   normalizeName,
   RECORD_OVERRIDES,
   type EventDateKey,
@@ -55,7 +54,8 @@ function deduplicateRecords(records: CheckInRecord[]): CheckInRecord[] {
     const existingScore =
       existing.signature.length + new Date(existing.createdAt).getTime() / 1e15;
     const currentScore =
-      corrected.signature.length + new Date(corrected.createdAt).getTime() / 1e15;
+      corrected.signature.length +
+      new Date(corrected.createdAt).getTime() / 1e15;
 
     if (currentScore > existingScore) {
       map.set(key, corrected);
@@ -63,14 +63,6 @@ function deduplicateRecords(records: CheckInRecord[]): CheckInRecord[] {
   }
 
   return Array.from(map.values());
-}
-
-function findRecordByName(
-  pool: CheckInRecord[],
-  name: string,
-): CheckInRecord | undefined {
-  const target = normalizeName(name);
-  return pool.find((r) => normalizeName(r.name) === target);
 }
 
 function cloneForDate(
@@ -84,55 +76,22 @@ function cloneForDate(
   };
 }
 
-function buildAllDaysRecords(pool: CheckInRecord[]): CheckInRecord[] {
-  const result: CheckInRecord[] = [];
-
-  for (const group of ALL_DAYS_ROSTER) {
-    for (const name of group.names) {
-      const found = findRecordByName(pool, name);
-      if (found) result.push(found);
-    }
-  }
-
-  return result;
-}
-
-function getMovedNames(): Set<string> {
-  const names = new Set<string>();
-  for (const dayNames of Object.values(MOVED_TO_EXHIBITION)) {
-    for (const name of dayNames) {
-      names.add(normalizeName(name));
-    }
-  }
-  return names;
-}
-
-function buildOpeningSheet(
-  pool: CheckInRecord[],
-  movedNames: Set<string>,
-): CheckInRecord[] {
-  return pool.filter((r) => !movedNames.has(normalizeName(r.name)));
-}
-
-function buildExhibitionSheet(
-  pool: CheckInRecord[],
-  dateKey: Exclude<EventDateKey, "2026-06-02">,
-): CheckInRecord[] {
+function buildSheet(pool: CheckInRecord[], dateKey: EventDateKey): CheckInRecord[] {
   const records: CheckInRecord[] = [];
 
-  for (const rec of buildAllDaysRecords(pool)) {
-    records.push(cloneForDate(rec, dateKey));
-  }
-
-  for (const name of MOVED_TO_EXHIBITION[dateKey]) {
-    const found = findRecordByName(pool, name);
-    if (found) records.push(cloneForDate(found, dateKey));
+  for (const person of pool) {
+    const days = getDaysForPerson(person.name);
+    if (!days.includes(dateKey)) continue;
+    records.push(cloneForDate(person, dateKey));
   }
 
   if (dateKey === "2026-06-05") {
     for (const name of COPIED_TO_605) {
-      const found = findRecordByName(pool, name);
-      if (found && !records.some((r) => normalizeName(r.name) === normalizeName(name))) {
+      const found = pool.find((r) => normalizeName(r.name) === normalizeName(name));
+      if (
+        found &&
+        !records.some((r) => normalizeName(r.name) === normalizeName(name))
+      ) {
         records.push(cloneForDate(found, dateKey));
       }
     }
@@ -145,18 +104,9 @@ export function transformToExportSheets(
   rawRecords: CheckInRecord[],
 ): ExportResult {
   const pool = deduplicateRecords(rawRecords);
-  const movedNames = getMovedNames();
 
   const sheets: ExportSheet[] = EVENT_SHEETS.map((config) => {
-    let records: CheckInRecord[];
-
-    if (config.key === "2026-06-02") {
-      records = buildOpeningSheet(pool, movedNames);
-    } else {
-      records = buildExhibitionSheet(pool, config.key);
-    }
-
-    records = sortSheetRecords(records, config.key);
+    const records = sortSheetRecords(buildSheet(pool, config.key), config.key);
 
     return {
       key: config.key,
@@ -169,11 +119,4 @@ export function transformToExportSheets(
   });
 
   return { sheets, totalRaw: rawRecords.length };
-}
-
-/** 新簽到是否應寫入四天名單 */
-export function shouldPropagateToAllDays(name: string): boolean {
-  return ALL_DAYS_ROSTER.flatMap((g) => g.names).some(
-    (n) => normalizeName(n) === normalizeName(name),
-  );
 }
