@@ -117,7 +117,8 @@ export const DAY_ONLY: Record<Exclude<EventDateKey, "2026-06-02">, string[]> = {
 
 /** 從特定日期排除（其餘日期仍保留） */
 export const EXCLUDE_FROM_DAY: Partial<Record<EventDateKey, string[]>> = {
-  "2026-06-04": ["范秀玲"],
+  "2026-06-03": ["曾千豪"],
+  "2026-06-04": ["范秀玲", "曾千豪"],
 };
 
 /** 6/5 額外確保出現（6/2 等日仍保留） */
