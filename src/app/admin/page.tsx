@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
@@ -211,9 +211,24 @@ export default function AdminPage() {
   const renderRootRef = useRef<HTMLDivElement>(null);
   const [sheets, setSheets] = useState<ExportSheet[]>([]);
   const [renderQueue, setRenderQueue] = useState<PageRenderProps[]>([]);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    };
+  }, [downloadUrl]);
+
+  const handleDownloadPdf = () => {
+    if (!downloadUrl) return;
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = PDF_FILENAME;
+    link.click();
+  };
 
   const buildPageQueue = (exportSheets: ExportSheet[]): PageRenderProps[] => {
     const queue: PageRenderProps[] = [];
@@ -274,6 +289,10 @@ export default function AdminPage() {
     setIsExporting(true);
     setError("");
     setStatus("正在載入簽到資料…");
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
+    }
 
     try {
       const response = await fetch("/api/checkin/export");
@@ -308,9 +327,11 @@ export default function AdminPage() {
         await renderPageToPdf(pdf, queue[i], i === 0);
       }
 
-      pdf.save(PDF_FILENAME);
+      const blob = pdf.output("blob");
+      const url = URL.createObjectURL(blob);
+      setDownloadUrl(url);
       setStatus(
-        `已匯出 ${exportSheets.length} 份簽到表，共 ${totalRecords} 筆紀錄`,
+        `PDF 已產生完成（${exportSheets.length} 份簽到表、${totalRecords} 筆紀錄），請點「下載 PDF」`,
       );
     } catch (exportError) {
       setError(
@@ -341,6 +362,16 @@ export default function AdminPage() {
         >
           {isExporting ? "匯出中…" : "匯出簽到表 PDF"}
         </button>
+
+        {downloadUrl && !isExporting && (
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            className="w-full rounded-xl border border-teal-400/50 bg-teal-500/20 py-3.5 text-base font-semibold text-teal-200 transition hover:bg-teal-500/30"
+          >
+            下載 PDF
+          </button>
+        )}
 
         {status && <p className="text-sm text-teal-300">{status}</p>}
 
