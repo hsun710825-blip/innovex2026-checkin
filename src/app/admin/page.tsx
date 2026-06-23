@@ -12,8 +12,8 @@ import {
 import type { CheckInRecord, ExportSheet } from "@/lib/types";
 
 const ROWS_PER_PAGE = 17;
+const PDF_PAGE_WIDTH_PX = 794;
 const PDF_WIDTH_MM = 210;
-const PAGE_HEIGHT_MM = 297;
 
 const PDF_FONT_FAMILY =
   '"Times New Roman", "DFKai-SB", "BiauKai", "標楷體", "KaiTi", serif';
@@ -25,11 +25,13 @@ const PDF_STYLES = {
     fontWeight: 700,
     marginBottom: "14px",
     lineHeight: 1,
+    fontFamily: PDF_FONT_FAMILY,
   },
   subtitle: {
     fontSize: "16pt",
     lineHeight: 1.5,
     marginBottom: "14px",
+    fontFamily: PDF_FONT_FAMILY,
   },
   subtitleLine: {
     margin: 0,
@@ -40,25 +42,25 @@ const PDF_STYLES = {
     borderCollapse: "collapse" as const,
     fontSize: "15pt",
     tableLayout: "fixed" as const,
+    fontFamily: PDF_FONT_FAMILY,
   },
   cell: {
     border: "1px solid #333",
-    padding: "3px 4px",
+    padding: "5px 6px",
     verticalAlign: "middle" as const,
     textAlign: "center" as const,
-    lineHeight: 1.2,
-    height: "34px",
+    lineHeight: 1.25,
+    fontSize: "15pt",
   },
   headerCell: {
     border: "1px solid #333",
-    padding: "4px",
+    padding: "6px 8px",
     backgroundColor: "#e0f2fe",
     textAlign: "center" as const,
     fontWeight: 600,
     fontSize: "15pt",
-    lineHeight: 1.2,
+    lineHeight: 1.25,
     verticalAlign: "middle" as const,
-    height: "32px",
   },
   signatureCell: {
     border: "1px solid #333",
@@ -72,20 +74,22 @@ const PDF_STYLES = {
 function OrganizationCell({ record }: { record: CheckInRecord }) {
   if (isKeelungDevDeptTwoLine(record)) {
     return (
-      <span
+      <div
         style={{
-          display: "inline-block",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "2px",
           lineHeight: 1.2,
-          verticalAlign: "middle",
         }}
       >
-        基隆市政府
-        <br />
-        產業發展處
-      </span>
+        <span>基隆市政府</span>
+        <span>產業發展處</span>
+      </div>
     );
   }
-  return <span style={{ verticalAlign: "middle" }}>{getDisplayOrganization(record)}</span>;
+  return <>{getDisplayOrganization(record)}</>;
 }
 
 function PdfTable({
@@ -197,6 +201,7 @@ function PdfPageContent({
             marginBottom: "10px",
             textAlign: "right",
             lineHeight: 1.5,
+            fontFamily: PDF_FONT_FAMILY,
           }}
         >
           {sheet.dateLabel}（續第 {pageIndex + 1} 頁）
@@ -278,11 +283,8 @@ export default function AdminPage() {
 
     if (!isFirstPdfPage) pdf.addPage();
 
-    if (imgHeight <= PAGE_HEIGHT_MM) {
-      pdf.addImage(imgData, "PNG", 0, 0, PDF_WIDTH_MM, imgHeight);
-    } else {
-      pdf.addImage(imgData, "PNG", 0, 0, PDF_WIDTH_MM, PAGE_HEIGHT_MM);
-    }
+    // 保持比例輸出，避免垂直壓縮造成字體變形
+    pdf.addImage(imgData, "PNG", 0, 0, PDF_WIDTH_MM, imgHeight);
   };
 
   const handleExport = async () => {
@@ -399,7 +401,7 @@ export default function AdminPage() {
           position: "fixed",
           left: "-9999px",
           top: 0,
-          width: "794px",
+          width: `${PDF_PAGE_WIDTH_PX}px`,
           backgroundColor: "#ffffff",
           color: "#000000",
           fontFamily: PDF_FONT_FAMILY,
