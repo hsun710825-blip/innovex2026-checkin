@@ -2,9 +2,11 @@ import {
   COPIED_TO_605,
   EVENT_LOCATION,
   EVENT_SHEETS,
+  EXHIBITION_DATE_KEYS,
   getDaysForPerson,
   normalizeName,
   RECORD_OVERRIDES,
+  TAIXU_EXHIBITION_ONLY,
   type EventDateKey,
 } from "./constants";
 import { sortSheetRecords } from "./sort-checkins";
@@ -76,12 +78,30 @@ function cloneForDate(
   };
 }
 
+function shouldIncludeOnDate(
+  person: CheckInRecord,
+  dateKey: EventDateKey,
+): boolean {
+  const days = getDaysForPerson(person.name);
+  if (!days.includes(dateKey)) return false;
+
+  if (
+    EXHIBITION_DATE_KEYS.includes(dateKey) &&
+    person.organization === "台續"
+  ) {
+    return TAIXU_EXHIBITION_ONLY.some(
+      (name) => normalizeName(name) === normalizeName(person.name),
+    );
+  }
+
+  return true;
+}
+
 function buildSheet(pool: CheckInRecord[], dateKey: EventDateKey): CheckInRecord[] {
   const records: CheckInRecord[] = [];
 
   for (const person of pool) {
-    const days = getDaysForPerson(person.name);
-    if (!days.includes(dateKey)) continue;
+    if (!shouldIncludeOnDate(person, dateKey)) continue;
     records.push(cloneForDate(person, dateKey));
   }
 

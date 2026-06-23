@@ -14,9 +14,37 @@ import type { CheckInRecord, ExportSheet } from "@/lib/types";
 const ROWS_PER_PAGE = 17;
 const PDF_PAGE_WIDTH_PX = 794;
 const PDF_WIDTH_MM = 210;
+const TABLE_ROW_HEIGHT_PX = 52;
 
 const PDF_FONT_FAMILY =
-  '"Times New Roman", "DFKai-SB", "BiauKai", "標楷體", "KaiTi", serif';
+  '"Microsoft JhengHei", "微軟正黑體", "PingFang TC", "Heiti TC", "Noto Sans TC", sans-serif';
+
+function TextCell({
+  children,
+  minHeight = TABLE_ROW_HEIGHT_PX,
+}: {
+  children: React.ReactNode;
+  minHeight?: number;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: `${minHeight}px`,
+        padding: "4px 6px",
+        boxSizing: "border-box",
+        fontSize: "15pt",
+        lineHeight: 1.3,
+        textAlign: "center",
+        wordBreak: "break-word",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 const PDF_STYLES = {
   title: {
@@ -46,20 +74,18 @@ const PDF_STYLES = {
   },
   cell: {
     border: "1px solid #333",
-    padding: "5px 6px",
+    padding: 0,
     verticalAlign: "middle" as const,
     textAlign: "center" as const,
-    lineHeight: 1.25,
     fontSize: "15pt",
   },
   headerCell: {
     border: "1px solid #333",
-    padding: "6px 8px",
+    padding: 0,
     backgroundColor: "#e0f2fe",
     textAlign: "center" as const,
     fontWeight: 600,
     fontSize: "15pt",
-    lineHeight: 1.25,
     verticalAlign: "middle" as const,
   },
   signatureCell: {
@@ -67,7 +93,7 @@ const PDF_STYLES = {
     padding: "4px",
     verticalAlign: "middle" as const,
     textAlign: "center" as const,
-    height: "52px",
+    height: `${TABLE_ROW_HEIGHT_PX}px`,
   },
 };
 
@@ -112,7 +138,9 @@ function PdfTable({
           <tr>
             {["單位", "姓名", "職稱", "簽名"].map((header) => (
               <th key={header} style={PDF_STYLES.headerCell}>
-                {header}
+                <TextCell minHeight={40}>
+                  <span style={{ fontWeight: 600 }}>{header}</span>
+                </TextCell>
               </th>
             ))}
           </tr>
@@ -122,10 +150,16 @@ function PdfTable({
         {records.map((record) => (
           <tr key={record.id}>
             <td style={{ ...PDF_STYLES.cell, wordBreak: "break-word" }}>
-              <OrganizationCell record={record} />
+              <TextCell>
+                <OrganizationCell record={record} />
+              </TextCell>
             </td>
-            <td style={PDF_STYLES.cell}>{record.name}</td>
-            <td style={PDF_STYLES.cell}>{record.title}</td>
+            <td style={PDF_STYLES.cell}>
+              <TextCell>{record.name}</TextCell>
+            </td>
+            <td style={PDF_STYLES.cell}>
+              <TextCell>{record.title}</TextCell>
+            </td>
             <td style={PDF_STYLES.signatureCell}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

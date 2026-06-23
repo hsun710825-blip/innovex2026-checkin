@@ -140,6 +140,15 @@ export const EXCLUDE_FROM_DAY: Partial<Record<EventDateKey, string[]>> = {
 /** 6/5 額外確保出現（6/2 等日仍保留） */
 export const COPIED_TO_605 = ["潘祖德", "曾千豪"];
 
+/** 展期（6/3～6/5）台續單位僅保留此人員；6/2 仍保留所有台續簽到者 */
+export const TAIXU_EXHIBITION_ONLY = ["吳啟弘", "施佑佳"];
+
+export const EXHIBITION_DATE_KEYS: EventDateKey[] = [
+  "2026-06-03",
+  "2026-06-04",
+  "2026-06-05",
+];
+
 /** 四天固定班底（文件用；邏輯上與預設四天相同） */
 export const ALL_DAYS_ROSTER: { org: string; names: string[] }[] = [
   { org: "基隆市政府產業發展處", names: ["范秀玲", "王倫壕"] },
