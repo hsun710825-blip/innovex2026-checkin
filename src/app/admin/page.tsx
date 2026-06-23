@@ -5,14 +5,16 @@ import { flushSync } from "react-dom";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { PDF_FILENAME } from "@/lib/constants";
-import { getDisplayOrganization } from "@/lib/sort-checkins";
+import {
+  getDisplayOrganization,
+  isKeelungDevDeptTwoLine,
+} from "@/lib/sort-checkins";
 import type { CheckInRecord, ExportSheet } from "@/lib/types";
 
-const ROWS_PER_PAGE = 16;
+const ROWS_PER_PAGE = 17;
 const PDF_WIDTH_MM = 210;
 const PAGE_HEIGHT_MM = 297;
 
-/** 中文標楷體、英文 Times New Roman */
 const PDF_FONT_FAMILY =
   '"Times New Roman", "DFKai-SB", "BiauKai", "標楷體", "KaiTi", serif';
 
@@ -21,40 +23,42 @@ const PDF_STYLES = {
     textAlign: "center" as const,
     fontSize: "20pt",
     fontWeight: 700,
-    marginBottom: "16px",
+    marginBottom: "14px",
     lineHeight: 1,
   },
   subtitle: {
     fontSize: "16pt",
-    lineHeight: 1,
-    marginBottom: "12px",
+    lineHeight: 1.5,
+    marginBottom: "14px",
   },
   subtitleLine: {
     margin: 0,
-    lineHeight: 1,
+    lineHeight: 1.5,
   },
   table: {
     width: "100%",
     borderCollapse: "collapse" as const,
-    fontSize: "14pt",
+    fontSize: "15pt",
     tableLayout: "fixed" as const,
-    lineHeight: 1,
   },
   cell: {
     border: "1px solid #333",
-    padding: "6px 4px",
+    padding: "3px 4px",
     verticalAlign: "middle" as const,
     textAlign: "center" as const,
-    lineHeight: 1,
+    lineHeight: 1.2,
+    height: "34px",
   },
   headerCell: {
     border: "1px solid #333",
-    padding: "6px 4px",
+    padding: "4px",
     backgroundColor: "#e0f2fe",
     textAlign: "center" as const,
     fontWeight: 600,
-    fontSize: "14pt",
-    lineHeight: 1,
+    fontSize: "15pt",
+    lineHeight: 1.2,
+    verticalAlign: "middle" as const,
+    height: "32px",
   },
   signatureCell: {
     border: "1px solid #333",
@@ -62,9 +66,27 @@ const PDF_STYLES = {
     verticalAlign: "middle" as const,
     textAlign: "center" as const,
     height: "52px",
-    lineHeight: 1,
   },
 };
+
+function OrganizationCell({ record }: { record: CheckInRecord }) {
+  if (isKeelungDevDeptTwoLine(record)) {
+    return (
+      <span
+        style={{
+          display: "inline-block",
+          lineHeight: 1.2,
+          verticalAlign: "middle",
+        }}
+      >
+        基隆市政府
+        <br />
+        產業發展處
+      </span>
+    );
+  }
+  return <span style={{ verticalAlign: "middle" }}>{getDisplayOrganization(record)}</span>;
+}
 
 function PdfTable({
   records,
@@ -75,6 +97,12 @@ function PdfTable({
 }) {
   return (
     <table style={PDF_STYLES.table}>
+      <colgroup>
+        <col style={{ width: "28%" }} />
+        <col style={{ width: "18%" }} />
+        <col style={{ width: "22%" }} />
+        <col style={{ width: "32%" }} />
+      </colgroup>
       {showHeader && (
         <thead>
           <tr>
@@ -90,7 +118,7 @@ function PdfTable({
         {records.map((record) => (
           <tr key={record.id}>
             <td style={{ ...PDF_STYLES.cell, wordBreak: "break-word" }}>
-              {getDisplayOrganization(record)}
+              <OrganizationCell record={record} />
             </td>
             <td style={PDF_STYLES.cell}>{record.name}</td>
             <td style={PDF_STYLES.cell}>{record.title}</td>
@@ -103,6 +131,7 @@ function PdfTable({
                   maxHeight: "48px",
                   maxWidth: "120px",
                   objectFit: "contain",
+                  verticalAlign: "middle",
                 }}
               />
             </td>
@@ -137,7 +166,7 @@ function PdfPageContent({
   return (
     <div
       style={{
-        padding: "40px 36px",
+        padding: "36px 32px",
         backgroundColor: "#ffffff",
         fontFamily: PDF_FONT_FAMILY,
         lineHeight: 1,
@@ -147,20 +176,27 @@ function PdfPageContent({
         <>
           <h1 style={PDF_STYLES.title}>{sheet.title}</h1>
           <div style={PDF_STYLES.subtitle}>
-            <p style={PDF_STYLES.subtitleLine}>日期：{sheet.dateLabel}</p>
-            <p style={PDF_STYLES.subtitleLine}>時間：{sheet.timeLabel}</p>
-            <p style={PDF_STYLES.subtitleLine}>地點：{sheet.location}</p>
+            <p style={PDF_STYLES.subtitleLine}>
+              一、日期：{sheet.dateLabel}
+            </p>
+            <p style={PDF_STYLES.subtitleLine}>
+              二、時間：{sheet.timeLabel}
+            </p>
+            <p style={PDF_STYLES.subtitleLine}>
+              三、地點：{sheet.location}
+            </p>
+            <p style={PDF_STYLES.subtitleLine}>四、簽到</p>
           </div>
         </>
       )}
       {!isFirstPageOfSheet && (
         <p
           style={{
-            fontSize: "14pt",
+            fontSize: "15pt",
             color: "#666",
-            marginBottom: "12px",
+            marginBottom: "10px",
             textAlign: "right",
-            lineHeight: 1,
+            lineHeight: 1.5,
           }}
         >
           {sheet.dateLabel}（續第 {pageIndex + 1} 頁）

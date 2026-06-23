@@ -20,6 +20,12 @@ export function getDisplayOrganization(record: CheckInRecord): string {
   return String(record.organization);
 }
 
+/** 基隆市政府產業發展處：PDF 單位欄兩行顯示 */
+export function isKeelungDevDeptTwoLine(record: CheckInRecord): boolean {
+  if (RECORD_OVERRIDES[normalizeName(record.name)]?.organization) return false;
+  return record.organization === "基隆市政府產業發展處";
+}
+
 function isGovOrg(displayOrg: string): boolean {
   return (
     displayOrg === "基隆市政府" || displayOrg === "基隆市政府產業發展處"
