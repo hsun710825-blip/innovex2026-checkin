@@ -1,0 +1,26 @@
+---
+description: 完成變更後自動推送 GitHub 並部署 Vercel
+alwaysApply: true
+---
+
+# 推送與部署
+
+本專案 `innovex2026-checkin` 完成可上線的程式變更後，**由 Agent 負責推送與部署**，無需使用者另外提醒。
+
+## 流程
+
+1. 確認 `npm run build` 通過
+2. `git add` 相關檔案並 commit（訊息簡潔、說明 why）
+3. `git push origin master`（或目前分支）
+4. Vercel 已連結 GitHub，push 後即自動部署；必要時確認部署狀態
+
+## 正式網址
+
+- 簽到：https://innovex2026-checkin.vercel.app/
+- 後台：https://innovex2026-checkin.vercel.app/admin
+- Repo：https://github.com/hsun710825-blip/innovex2026-checkin
+
+## 注意
+
+- 不要 push 含機密的檔案（`.env.local` 等）
+- 僅在使用者明確要求時才 force push
