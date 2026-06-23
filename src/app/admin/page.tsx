@@ -12,6 +12,60 @@ const ROWS_PER_PAGE = 16;
 const PDF_WIDTH_MM = 210;
 const PAGE_HEIGHT_MM = 297;
 
+/** 中文標楷體、英文 Times New Roman */
+const PDF_FONT_FAMILY =
+  '"Times New Roman", "DFKai-SB", "BiauKai", "標楷體", "KaiTi", serif';
+
+const PDF_STYLES = {
+  title: {
+    textAlign: "center" as const,
+    fontSize: "20pt",
+    fontWeight: 700,
+    marginBottom: "16px",
+    lineHeight: 1,
+  },
+  subtitle: {
+    fontSize: "16pt",
+    lineHeight: 1,
+    marginBottom: "12px",
+  },
+  subtitleLine: {
+    margin: 0,
+    lineHeight: 1,
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse" as const,
+    fontSize: "14pt",
+    tableLayout: "fixed" as const,
+    lineHeight: 1,
+  },
+  cell: {
+    border: "1px solid #333",
+    padding: "6px 4px",
+    verticalAlign: "middle" as const,
+    textAlign: "center" as const,
+    lineHeight: 1,
+  },
+  headerCell: {
+    border: "1px solid #333",
+    padding: "6px 4px",
+    backgroundColor: "#e0f2fe",
+    textAlign: "center" as const,
+    fontWeight: 600,
+    fontSize: "14pt",
+    lineHeight: 1,
+  },
+  signatureCell: {
+    border: "1px solid #333",
+    padding: "4px",
+    verticalAlign: "middle" as const,
+    textAlign: "center" as const,
+    height: "52px",
+    lineHeight: 1,
+  },
+};
+
 function PdfTable({
   records,
   showHeader,
@@ -20,28 +74,12 @@ function PdfTable({
   showHeader: boolean;
 }) {
   return (
-    <table
-      style={{
-        width: "100%",
-        borderCollapse: "collapse",
-        fontSize: "13px",
-        tableLayout: "fixed",
-      }}
-    >
+    <table style={PDF_STYLES.table}>
       {showHeader && (
         <thead>
           <tr>
             {["單位", "姓名", "職稱", "簽名"].map((header) => (
-              <th
-                key={header}
-                style={{
-                  border: "1px solid #333",
-                  padding: "8px 6px",
-                  backgroundColor: "#e0f2fe",
-                  textAlign: "left",
-                  fontWeight: 600,
-                }}
-              >
+              <th key={header} style={PDF_STYLES.headerCell}>
                 {header}
               </th>
             ))}
@@ -51,43 +89,12 @@ function PdfTable({
       <tbody>
         {records.map((record) => (
           <tr key={record.id}>
-            <td
-              style={{
-                border: "1px solid #333",
-                padding: "8px 6px",
-                verticalAlign: "middle",
-                wordBreak: "break-word",
-              }}
-            >
+            <td style={{ ...PDF_STYLES.cell, wordBreak: "break-word" }}>
               {getDisplayOrganization(record)}
             </td>
-            <td
-              style={{
-                border: "1px solid #333",
-                padding: "8px 6px",
-                verticalAlign: "middle",
-              }}
-            >
-              {record.name}
-            </td>
-            <td
-              style={{
-                border: "1px solid #333",
-                padding: "8px 6px",
-                verticalAlign: "middle",
-              }}
-            >
-              {record.title}
-            </td>
-            <td
-              style={{
-                border: "1px solid #333",
-                padding: "4px",
-                verticalAlign: "middle",
-                textAlign: "center",
-                height: "52px",
-              }}
-            >
+            <td style={PDF_STYLES.cell}>{record.name}</td>
+            <td style={PDF_STYLES.cell}>{record.title}</td>
+            <td style={PDF_STYLES.signatureCell}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={record.signature}
@@ -128,36 +135,32 @@ function PdfPageContent({
   isFirstPageOfSheet,
 }: PageRenderProps) {
   return (
-    <div style={{ padding: "40px 36px", backgroundColor: "#ffffff" }}>
+    <div
+      style={{
+        padding: "40px 36px",
+        backgroundColor: "#ffffff",
+        fontFamily: PDF_FONT_FAMILY,
+        lineHeight: 1,
+      }}
+    >
       {isFirstPageOfSheet && (
         <>
-          <h1
-            style={{
-              textAlign: "center",
-              fontSize: "22px",
-              fontWeight: 700,
-              marginBottom: "24px",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {sheet.title}
-          </h1>
-          <div
-            style={{ fontSize: "14px", lineHeight: 1.8, marginBottom: "16px" }}
-          >
-            <p>日期：{sheet.dateLabel}</p>
-            <p>時間：{sheet.timeLabel}</p>
-            <p>地點：{sheet.location}</p>
+          <h1 style={PDF_STYLES.title}>{sheet.title}</h1>
+          <div style={PDF_STYLES.subtitle}>
+            <p style={PDF_STYLES.subtitleLine}>日期：{sheet.dateLabel}</p>
+            <p style={PDF_STYLES.subtitleLine}>時間：{sheet.timeLabel}</p>
+            <p style={PDF_STYLES.subtitleLine}>地點：{sheet.location}</p>
           </div>
         </>
       )}
       {!isFirstPageOfSheet && (
         <p
           style={{
-            fontSize: "12px",
+            fontSize: "14pt",
             color: "#666",
             marginBottom: "12px",
             textAlign: "right",
+            lineHeight: 1,
           }}
         >
           {sheet.dateLabel}（續第 {pageIndex + 1} 頁）
@@ -206,7 +209,8 @@ export default function AdminPage() {
       setRenderQueue([props]);
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 120));
+    await document.fonts.ready;
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     const pageEl = root.firstElementChild as HTMLElement | null;
     if (!pageEl) throw new Error("頁面渲染失敗");
@@ -331,11 +335,15 @@ export default function AdminPage() {
           width: "794px",
           backgroundColor: "#ffffff",
           color: "#000000",
-          fontFamily: "var(--font-noto-sans-tc), 'Noto Sans TC', sans-serif",
+          fontFamily: PDF_FONT_FAMILY,
+          lineHeight: 1,
         }}
       >
         {renderQueue.map((props) => (
-          <PdfPageContent key={`${props.sheet.key}-${props.pageIndex}`} {...props} />
+          <PdfPageContent
+            key={`${props.sheet.key}-${props.pageIndex}`}
+            {...props}
+          />
         ))}
       </div>
     </main>

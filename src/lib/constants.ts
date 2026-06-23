@@ -69,13 +69,13 @@ export const EVENT_SHEETS: EventSheetConfig[] = [
     title: "InnoVex2026基隆主題館展期簽到",
     dateLabel: "115年6月3日",
     timeLabel: "上午9:00-下午17:00",
+    pinnedFirst: "蔡馥嚀",
   },
   {
     key: "2026-06-04",
     title: "InnoVex2026基隆主題館展期簽到",
     dateLabel: "115年6月4日",
     timeLabel: "上午9:00-下午17:00",
-    pinnedFirst: "蔡馥嚀",
   },
   {
     key: "2026-06-05",
@@ -105,20 +105,36 @@ export const OPENING_GOVERNMENT_ORDER = ["方定安", "黃毅維", "潘祖德"];
 /** 6/2 導演／攝影人員，劉人傑在前 */
 export const OPENING_MEDIA_CREW_ORDER = ["劉人傑", "周敬淳"];
 
+/** 僅出現在 6/2 開幕（展期三天不出現） */
+export const OPENING_ONLY: string[] = [
+  "方定安",
+  "黃毅維",
+  "劉哲成",
+  "張方杰",
+  "鍾政偉",
+  "劉人傑",
+  "周敬淳",
+  "黃怡璇",
+];
+
+/** 嘉澄股份有限公司內部排序 */
+export const JIACHENG_NAME_ORDER = ["曾千豪", "陳毓琳", "王貞文"];
+
 /**
  * 僅出現在指定日期（不適用四天預設）
  * 其餘資料庫人員（含新簽到／補簽）預設四天皆有
  */
 export const DAY_ONLY: Record<Exclude<EventDateKey, "2026-06-02">, string[]> = {
-  "2026-06-03": ["李凱笙", "郭宏達"],
-  "2026-06-04": ["蔡馥嚀", "孔麗玲", "黃麗玉", "林慶其", "黃淑華"],
+  "2026-06-03": ["蔡馥嚀", "李凱笙", "郭宏達"],
+  "2026-06-04": ["孔麗玲", "黃麗玉", "林慶其", "黃淑華"],
   "2026-06-05": ["何東明"],
 };
 
 /** 從特定日期排除（其餘日期仍保留） */
 export const EXCLUDE_FROM_DAY: Partial<Record<EventDateKey, string[]>> = {
   "2026-06-03": ["曾千豪"],
-  "2026-06-04": ["范秀玲", "曾千豪"],
+  "2026-06-04": ["范秀玲", "曾千豪", "王倫壕"],
+  "2026-06-05": ["陳毓琳"],
 };
 
 /** 6/5 額外確保出現（6/2 等日仍保留） */
@@ -137,6 +153,10 @@ export const ALL_DAYS_ROSTER: { org: string; names: string[] }[] = [
 
 export function getDaysForPerson(name: string): EventDateKey[] {
   const normalized = normalizeName(name);
+
+  if (OPENING_ONLY.some((n) => normalizeName(n) === normalized)) {
+    return ["2026-06-02"];
+  }
 
   for (const [day, names] of Object.entries(DAY_ONLY) as [
     Exclude<EventDateKey, "2026-06-02">,

@@ -1,5 +1,6 @@
 import {
   EVENT_SHEETS,
+  JIACHENG_NAME_ORDER,
   normalizeName,
   OPENING_GOVERNMENT_ORDER,
   OPENING_MEDIA_CREW_ORDER,
@@ -19,12 +20,16 @@ export function getDisplayOrganization(record: CheckInRecord): string {
   return String(record.organization);
 }
 
+function isGovOrg(displayOrg: string): boolean {
+  return (
+    displayOrg === "基隆市政府" || displayOrg === "基隆市政府產業發展處"
+  );
+}
+
 function getOrgSortIndex(displayOrg: string): number {
   const idx = ORGANIZATION_SORT_ORDER.indexOf(displayOrg);
   if (idx >= 0) return idx;
-  if (displayOrg === "基隆市政府" || displayOrg === "基隆市政府產業發展處") {
-    return -1;
-  }
+  if (isGovOrg(displayOrg)) return -1;
   return ORGANIZATION_SORT_ORDER.length;
 }
 
@@ -50,21 +55,18 @@ function getSortKey(record: CheckInRecord, dateKey: EventDateKey): SortKey {
       (n) => normalizeName(n) === normalized,
     );
     if (idx >= 0) govRank = idx + 1;
-    else if (
-      displayOrg === "基隆市政府" ||
-      displayOrg === "基隆市政府產業發展處"
-    ) {
-      govRank = 50;
-    }
+    else if (isGovOrg(displayOrg)) govRank = 50;
+  } else if (
+    dateKey === "2026-06-04" &&
+    isGovOrg(displayOrg)
+  ) {
+    govRank = 1;
   } else if (
     dateKey === "2026-06-05" &&
     normalized === normalizeName("潘祖德")
   ) {
     govRank = 0;
-  } else if (
-    displayOrg === "基隆市政府" ||
-    displayOrg === "基隆市政府產業發展處"
-  ) {
+  } else if (isGovOrg(displayOrg)) {
     govRank = 50;
   }
 
@@ -87,6 +89,13 @@ function getSortKey(record: CheckInRecord, dateKey: EventDateKey): SortKey {
     if (normalized === normalizeName("Stacy Lee")) nameOrder = 0;
     else if (normalized === normalizeName("袁碧蓮")) nameOrder = 1;
     else nameOrder = 2;
+  }
+
+  if (displayOrg === "嘉澄股份有限公司") {
+    const jcIdx = JIACHENG_NAME_ORDER.findIndex(
+      (n) => normalizeName(n) === normalized,
+    );
+    nameOrder = jcIdx >= 0 ? jcIdx : JIACHENG_NAME_ORDER.length;
   }
 
   return [govRank, orgIndex, mediaGroup, nameOrder, normalized];
