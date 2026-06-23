@@ -4,38 +4,50 @@ import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
-import { EVENT_INFO, PDF_FILENAME } from "@/lib/constants";
+import { PDF_FILENAME } from "@/lib/constants";
 import { getDisplayOrganization } from "@/lib/sort-checkins";
-import type { CheckInRecord } from "@/lib/types";
+import type { CheckInRecord, ExportSheet } from "@/lib/types";
 
-function PdfTable({ records }: { records: CheckInRecord[] }) {
+const ROWS_PER_PAGE = 16;
+const PDF_WIDTH_MM = 210;
+const PAGE_HEIGHT_MM = 297;
+
+function PdfTable({
+  records,
+  showHeader,
+}: {
+  records: CheckInRecord[];
+  showHeader: boolean;
+}) {
   return (
     <table
       style={{
         width: "100%",
         borderCollapse: "collapse",
         fontSize: "13px",
-        marginTop: "16px",
+        tableLayout: "fixed",
       }}
     >
-      <thead>
-        <tr>
-          {["單位", "姓名", "職稱", "簽名"].map((header) => (
-            <th
-              key={header}
-              style={{
-                border: "1px solid #333",
-                padding: "8px 6px",
-                backgroundColor: "#e0f2fe",
-                textAlign: "left",
-                fontWeight: 600,
-              }}
-            >
-              {header}
-            </th>
-          ))}
-        </tr>
-      </thead>
+      {showHeader && (
+        <thead>
+          <tr>
+            {["單位", "姓名", "職稱", "簽名"].map((header) => (
+              <th
+                key={header}
+                style={{
+                  border: "1px solid #333",
+                  padding: "8px 6px",
+                  backgroundColor: "#e0f2fe",
+                  textAlign: "left",
+                  fontWeight: 600,
+                }}
+              >
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+      )}
       <tbody>
         {records.map((record) => (
           <tr key={record.id}>
@@ -44,7 +56,7 @@ function PdfTable({ records }: { records: CheckInRecord[] }) {
                 border: "1px solid #333",
                 padding: "8px 6px",
                 verticalAlign: "middle",
-                maxWidth: "140px",
+                wordBreak: "break-word",
               }}
             >
               {getDisplayOrganization(record)}
@@ -73,6 +85,7 @@ function PdfTable({ records }: { records: CheckInRecord[] }) {
                 padding: "4px",
                 verticalAlign: "middle",
                 textAlign: "center",
+                height: "52px",
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -93,12 +106,129 @@ function PdfTable({ records }: { records: CheckInRecord[] }) {
   );
 }
 
+function chunkRecords<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks.length > 0 ? chunks : [[]];
+}
+
+interface PageRenderProps {
+  sheet: ExportSheet;
+  rows: CheckInRecord[];
+  pageIndex: number;
+  isFirstPageOfSheet: boolean;
+}
+
+function PdfPageContent({
+  sheet,
+  rows,
+  pageIndex,
+  isFirstPageOfSheet,
+}: PageRenderProps) {
+  return (
+    <div style={{ padding: "40px 36px", backgroundColor: "#ffffff" }}>
+      {isFirstPageOfSheet && (
+        <>
+          <h1
+            style={{
+              textAlign: "center",
+              fontSize: "22px",
+              fontWeight: 700,
+              marginBottom: "24px",
+              letterSpacing: "0.05em",
+            }}
+          >
+            {sheet.title}
+          </h1>
+          <div
+            style={{ fontSize: "14px", lineHeight: 1.8, marginBottom: "16px" }}
+          >
+            <p>日期：{sheet.dateLabel}</p>
+            <p>時間：{sheet.timeLabel}</p>
+            <p>地點：{sheet.location}</p>
+          </div>
+        </>
+      )}
+      {!isFirstPageOfSheet && (
+        <p
+          style={{
+            fontSize: "12px",
+            color: "#666",
+            marginBottom: "12px",
+            textAlign: "right",
+          }}
+        >
+          {sheet.dateLabel}（續第 {pageIndex + 1} 頁）
+        </p>
+      )}
+      <PdfTable records={rows} showHeader />
+    </div>
+  );
+}
+
 export default function AdminPage() {
-  const pdfRef = useRef<HTMLDivElement>(null);
-  const [records, setRecords] = useState<CheckInRecord[]>([]);
+  const renderRootRef = useRef<HTMLDivElement>(null);
+  const [sheets, setSheets] = useState<ExportSheet[]>([]);
+  const [renderQueue, setRenderQueue] = useState<PageRenderProps[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+
+  const buildPageQueue = (exportSheets: ExportSheet[]): PageRenderProps[] => {
+    const queue: PageRenderProps[] = [];
+
+    for (const sheet of exportSheets) {
+      const chunks = chunkRecords(sheet.records, ROWS_PER_PAGE);
+      chunks.forEach((rows, pageIndex) => {
+        queue.push({
+          sheet,
+          rows,
+          pageIndex,
+          isFirstPageOfSheet: pageIndex === 0,
+        });
+      });
+    }
+
+    return queue;
+  };
+
+  const renderPageToPdf = async (
+    pdf: jsPDF,
+    props: PageRenderProps,
+    isFirstPdfPage: boolean,
+  ) => {
+    const root = renderRootRef.current;
+    if (!root) throw new Error("PDF 渲染區域未就緒");
+
+    flushSync(() => {
+      setRenderQueue([props]);
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    const pageEl = root.firstElementChild as HTMLElement | null;
+    if (!pageEl) throw new Error("頁面渲染失敗");
+
+    const canvas = await html2canvas(pageEl, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const imgHeight = (canvas.height * PDF_WIDTH_MM) / canvas.width;
+
+    if (!isFirstPdfPage) pdf.addPage();
+
+    if (imgHeight <= PAGE_HEIGHT_MM) {
+      pdf.addImage(imgData, "PNG", 0, 0, PDF_WIDTH_MM, imgHeight);
+    } else {
+      pdf.addImage(imgData, "PNG", 0, 0, PDF_WIDTH_MM, PAGE_HEIGHT_MM);
+    }
+  };
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -108,7 +238,7 @@ export default function AdminPage() {
     try {
       const response = await fetch("/api/checkin/export");
       const data = (await response.json()) as {
-        records?: CheckInRecord[];
+        sheets?: ExportSheet[];
         error?: string;
       };
 
@@ -116,56 +246,40 @@ export default function AdminPage() {
         throw new Error(data.error || "無法取得簽到資料");
       }
 
-      const fetchedRecords = data.records ?? [];
+      const exportSheets = data.sheets ?? [];
+      const totalRecords = exportSheets.reduce(
+        (sum, s) => sum + s.records.length,
+        0,
+      );
+
       flushSync(() => {
-        setRecords(fetchedRecords);
-      });
-      setStatus(`共 ${fetchedRecords.length} 筆資料，正在產生 PDF…`);
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const element = pdfRef.current;
-      if (!element) {
-        throw new Error("PDF 渲染區域未就緒");
-      }
-
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
+        setSheets(exportSheets);
       });
 
-      const imgData = canvas.toDataURL("image/png");
-      const pdfWidth = 210;
-      const pageHeight = 297;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      const queue = buildPageQueue(exportSheets);
+      setStatus(
+        `共 ${exportSheets.length} 份簽到表、${totalRecords} 筆紀錄，正在產生 PDF…`,
+      );
 
       const pdf = new jsPDF("p", "mm", "a4");
-      let heightLeft = imgHeight;
-      let position = 0;
 
-      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
-        heightLeft -= pageHeight;
+      for (let i = 0; i < queue.length; i++) {
+        setStatus(`正在產生 PDF…（${i + 1}/${queue.length} 頁）`);
+        await renderPageToPdf(pdf, queue[i], i === 0);
       }
 
       pdf.save(PDF_FILENAME);
-      setStatus(`已匯出 ${fetchedRecords.length} 筆簽到紀錄`);
+      setStatus(
+        `已匯出 ${exportSheets.length} 份簽到表，共 ${totalRecords} 筆紀錄`,
+      );
     } catch (exportError) {
       setError(
-        exportError instanceof Error
-          ? exportError.message
-          : "PDF 匯出失敗",
+        exportError instanceof Error ? exportError.message : "PDF 匯出失敗",
       );
       setStatus("");
     } finally {
       setIsExporting(false);
+      setRenderQueue([]);
     }
   };
 
@@ -175,7 +289,7 @@ export default function AdminPage() {
         <div>
           <h1 className="text-xl font-bold text-white">後台管理</h1>
           <p className="mt-2 text-sm text-ocean-300/70">
-            InnoVex2026 基隆主題館開幕儀式簽到表
+            InnoVex2026 基隆主題館簽到表（6/2～6/5）
           </p>
         </div>
 
@@ -188,20 +302,28 @@ export default function AdminPage() {
           {isExporting ? "匯出中…" : "匯出簽到表 PDF"}
         </button>
 
-        {status && (
-          <p className="text-sm text-teal-300">{status}</p>
-        )}
+        {status && <p className="text-sm text-teal-300">{status}</p>}
 
         {error && (
           <p className="rounded-lg bg-red-500/20 px-4 py-3 text-sm text-red-200">
             {error}
           </p>
         )}
+
+        {sheets.length > 0 && !isExporting && (
+          <div className="text-left text-xs text-ocean-300/60">
+            {sheets.map((s) => (
+              <p key={s.key}>
+                {s.dateLabel}：{s.records.length} 筆
+              </p>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Hidden A4 PDF render area */}
       <div
         aria-hidden
+        ref={renderRootRef}
         style={{
           position: "fixed",
           left: "-9999px",
@@ -212,27 +334,9 @@ export default function AdminPage() {
           fontFamily: "var(--font-noto-sans-tc), 'Noto Sans TC', sans-serif",
         }}
       >
-        <div ref={pdfRef} style={{ padding: "40px 36px" }}>
-          <h1
-            style={{
-              textAlign: "center",
-              fontSize: "22px",
-              fontWeight: 700,
-              marginBottom: "24px",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {EVENT_INFO.title}
-          </h1>
-
-          <div style={{ fontSize: "14px", lineHeight: 1.8, marginBottom: "8px" }}>
-            <p>日期：{EVENT_INFO.date}</p>
-            <p>時間：{EVENT_INFO.time}</p>
-            <p>地點：{EVENT_INFO.location}</p>
-          </div>
-
-          <PdfTable records={records} />
-        </div>
+        {renderQueue.map((props) => (
+          <PdfPageContent key={`${props.sheet.key}-${props.pageIndex}`} {...props} />
+        ))}
       </div>
     </main>
   );

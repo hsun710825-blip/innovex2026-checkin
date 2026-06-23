@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { sortCheckIns } from "@/lib/sort-checkins";
 import { getAllCheckIns } from "@/lib/storage";
+import { transformToExportSheets } from "@/lib/transform-checkins";
 
 export async function GET() {
   try {
-    const records = await getAllCheckIns();
-    const sorted = sortCheckIns(records);
+    const raw = await getAllCheckIns();
+    const result = transformToExportSheets(raw);
 
-    return NextResponse.json({ records: sorted, total: sorted.length });
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Export fetch failed:", error);
     return NextResponse.json({ error: "無法取得簽到資料" }, { status: 500 });
