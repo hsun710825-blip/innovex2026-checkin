@@ -11,37 +11,92 @@ import {
 } from "@/lib/sort-checkins";
 import type { CheckInRecord, ExportSheet } from "@/lib/types";
 
-const ROWS_PER_PAGE = 17;
+const ROWS_PER_PAGE_FIRST = 12;
+const ROWS_PER_PAGE_CONT = 15;
 const PDF_PAGE_WIDTH_PX = 794;
 const PDF_WIDTH_MM = 210;
+const PAGE_HEIGHT_MM = 297;
+const PAGE_HEIGHT_PX = Math.round((PDF_PAGE_WIDTH_PX * PAGE_HEIGHT_MM) / PDF_WIDTH_MM);
+const PAGE_FOOTER_MM = 15;
 const TABLE_ROW_HEIGHT_PX = 52;
+const SIGNATURE_MAX_HEIGHT_PX = 44;
+const SIGNATURE_MAX_WIDTH_PX = 110;
 
 const PDF_FONT_FAMILY =
   '"Microsoft JhengHei", "微軟正黑體", "PingFang TC", "Heiti TC", "Noto Sans TC", sans-serif';
 
-function TextCell({
+/** html2canvas 對 table-cell 垂直置中較穩定 */
+function CenteredCell({
   children,
-  minHeight = TABLE_ROW_HEIGHT_PX,
+  height = TABLE_ROW_HEIGHT_PX,
 }: {
   children: React.ReactNode;
-  minHeight?: number;
+  height?: number;
 }) {
   return (
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: `${minHeight}px`,
-        padding: "4px 6px",
-        boxSizing: "border-box",
-        fontSize: "15pt",
-        lineHeight: 1.3,
-        textAlign: "center",
-        wordBreak: "break-word",
+        display: "table",
+        width: "100%",
+        height: `${height}px`,
+        tableLayout: "fixed",
       }}
     >
-      {children}
+      <div
+        style={{
+          display: "table-cell",
+          width: "100%",
+          height: `${height}px`,
+          verticalAlign: "middle",
+          textAlign: "center",
+          padding: "4px 6px",
+          boxSizing: "border-box",
+          fontSize: "15pt",
+          lineHeight: 1.3,
+          wordBreak: "break-word",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SignatureImage({ src, name }: { src: string; name: string }) {
+  return (
+    <div
+      style={{
+        display: "table",
+        width: "100%",
+        height: `${TABLE_ROW_HEIGHT_PX}px`,
+      }}
+    >
+      <div
+        style={{
+          display: "table-cell",
+          width: "100%",
+          height: `${TABLE_ROW_HEIGHT_PX}px`,
+          verticalAlign: "middle",
+          textAlign: "center",
+          padding: "3px 4px",
+          boxSizing: "border-box",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={`${name} 簽名`}
+          style={{
+            display: "inline-block",
+            maxHeight: `${SIGNATURE_MAX_HEIGHT_PX}px`,
+            maxWidth: `${SIGNATURE_MAX_WIDTH_PX}px`,
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            verticalAlign: "middle",
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -78,6 +133,7 @@ const PDF_STYLES = {
     verticalAlign: "middle" as const,
     textAlign: "center" as const,
     fontSize: "15pt",
+    height: `${TABLE_ROW_HEIGHT_PX}px`,
   },
   headerCell: {
     border: "1px solid #333",
@@ -87,10 +143,11 @@ const PDF_STYLES = {
     fontWeight: 600,
     fontSize: "15pt",
     verticalAlign: "middle" as const,
+    height: "40px",
   },
   signatureCell: {
     border: "1px solid #333",
-    padding: "4px",
+    padding: 0,
     verticalAlign: "middle" as const,
     textAlign: "center" as const,
     height: `${TABLE_ROW_HEIGHT_PX}px`,
@@ -100,19 +157,10 @@ const PDF_STYLES = {
 function OrganizationCell({ record }: { record: CheckInRecord }) {
   if (isKeelungDevDeptTwoLine(record)) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "2px",
-          lineHeight: 1.2,
-        }}
-      >
-        <span>基隆市政府</span>
-        <span>產業發展處</span>
-      </div>
+      <>
+        <span style={{ display: "block" }}>基隆市政府</span>
+        <span style={{ display: "block" }}>產業發展處</span>
+      </>
     );
   }
   return <>{getDisplayOrganization(record)}</>;
@@ -138,9 +186,9 @@ function PdfTable({
           <tr>
             {["單位", "姓名", "職稱", "簽名"].map((header) => (
               <th key={header} style={PDF_STYLES.headerCell}>
-                <TextCell minHeight={40}>
+                <CenteredCell height={40}>
                   <span style={{ fontWeight: 600 }}>{header}</span>
-                </TextCell>
+                </CenteredCell>
               </th>
             ))}
           </tr>
@@ -149,29 +197,19 @@ function PdfTable({
       <tbody>
         {records.map((record) => (
           <tr key={record.id}>
-            <td style={{ ...PDF_STYLES.cell, wordBreak: "break-word" }}>
-              <TextCell>
+            <td style={PDF_STYLES.cell}>
+              <CenteredCell>
                 <OrganizationCell record={record} />
-              </TextCell>
+              </CenteredCell>
             </td>
             <td style={PDF_STYLES.cell}>
-              <TextCell>{record.name}</TextCell>
+              <CenteredCell>{record.name}</CenteredCell>
             </td>
             <td style={PDF_STYLES.cell}>
-              <TextCell>{record.title}</TextCell>
+              <CenteredCell>{record.title}</CenteredCell>
             </td>
             <td style={PDF_STYLES.signatureCell}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={record.signature}
-                alt={`${record.name} 簽名`}
-                style={{
-                  maxHeight: "48px",
-                  maxWidth: "120px",
-                  objectFit: "contain",
-                  verticalAlign: "middle",
-                }}
-              />
+              <SignatureImage src={record.signature} name={record.name} />
             </td>
           </tr>
         ))}
@@ -180,12 +218,21 @@ function PdfTable({
   );
 }
 
-function chunkRecords<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
+function chunkSheetRecords(records: CheckInRecord[]): CheckInRecord[][] {
+  if (records.length === 0) return [[]];
+
+  const chunks: CheckInRecord[][] = [];
+  let offset = 0;
+  let pageIndex = 0;
+
+  while (offset < records.length) {
+    const size = pageIndex === 0 ? ROWS_PER_PAGE_FIRST : ROWS_PER_PAGE_CONT;
+    chunks.push(records.slice(offset, offset + size));
+    offset += size;
+    pageIndex += 1;
   }
-  return chunks.length > 0 ? chunks : [[]];
+
+  return chunks;
 }
 
 interface PageRenderProps {
@@ -204,10 +251,15 @@ function PdfPageContent({
   return (
     <div
       style={{
+        width: `${PDF_PAGE_WIDTH_PX}px`,
+        height: `${PAGE_HEIGHT_PX}px`,
         padding: "36px 32px",
+        paddingBottom: `${PAGE_FOOTER_MM}mm`,
+        boxSizing: "border-box",
         backgroundColor: "#ffffff",
         fontFamily: PDF_FONT_FAMILY,
         lineHeight: 1,
+        overflow: "hidden",
       }}
     >
       {isFirstPageOfSheet && (
@@ -232,7 +284,7 @@ function PdfPageContent({
           style={{
             fontSize: "15pt",
             color: "#666",
-            marginBottom: "10px",
+            margin: "0 0 10px",
             textAlign: "right",
             lineHeight: 1.5,
             fontFamily: PDF_FONT_FAMILY,
@@ -273,7 +325,7 @@ export default function AdminPage() {
     const queue: PageRenderProps[] = [];
 
     for (const sheet of exportSheets) {
-      const chunks = chunkRecords(sheet.records, ROWS_PER_PAGE);
+      const chunks = chunkSheetRecords(sheet.records);
       chunks.forEach((rows, pageIndex) => {
         queue.push({
           sheet,
@@ -310,15 +362,17 @@ export default function AdminPage() {
       useCORS: true,
       logging: false,
       backgroundColor: "#ffffff",
+      width: PDF_PAGE_WIDTH_PX,
+      height: PAGE_HEIGHT_PX,
+      windowWidth: PDF_PAGE_WIDTH_PX,
+      windowHeight: PAGE_HEIGHT_PX,
     });
 
     const imgData = canvas.toDataURL("image/png");
-    const imgHeight = (canvas.height * PDF_WIDTH_MM) / canvas.width;
 
     if (!isFirstPdfPage) pdf.addPage();
 
-    // 保持比例輸出，避免垂直壓縮造成字體變形
-    pdf.addImage(imgData, "PNG", 0, 0, PDF_WIDTH_MM, imgHeight);
+    pdf.addImage(imgData, "PNG", 0, 0, PDF_WIDTH_MM, PAGE_HEIGHT_MM);
   };
 
   const handleExport = async () => {
