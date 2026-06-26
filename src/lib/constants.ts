@@ -115,7 +115,18 @@ export const OPENING_ONLY: string[] = [
   "劉人傑",
   "周敬淳",
   "黃怡璇",
+  "黃偉傑",
+  "閻正道",
 ];
+
+/** 指定人員僅出現在列出的日期（優先於四天預設與 DAY_ONLY） */
+export const PERSON_DAYS: Partial<Record<string, EventDateKey[]>> = {
+  賴芝瑩: ["2026-06-04", "2026-06-05"],
+  潘祖德: ["2026-06-02", "2026-06-05"],
+  黃偉傑: ["2026-06-02"],
+  李婷芃: ["2026-06-05"],
+  閻正道: ["2026-06-02"],
+};
 
 /** 嘉澄股份有限公司內部排序 */
 export const JIACHENG_NAME_ORDER = ["曾千豪", "陳毓琳", "王貞文"];
@@ -138,10 +149,15 @@ export const EXCLUDE_FROM_DAY: Partial<Record<EventDateKey, string[]>> = {
 };
 
 /** 6/5 額外確保出現（6/2 等日仍保留） */
-export const COPIED_TO_605 = ["潘祖德", "曾千豪"];
+export const COPIED_TO_605 = ["曾千豪"];
 
 /** 展期（6/3～6/5）台續單位僅保留此人員；6/2 仍保留所有台續簽到者 */
 export const TAIXU_EXHIBITION_ONLY = ["吳啟弘", "施佑佳"];
+
+/** 單位僅出現在列出的日期（與四天預設取交集） */
+export const ORG_ALLOWED_DAYS: Partial<Record<string, EventDateKey[]>> = {
+  "萌老大(森田生技)": ["2026-06-02", "2026-06-03", "2026-06-05"],
+};
 
 export const EXHIBITION_DATE_KEYS: EventDateKey[] = [
   "2026-06-03",
@@ -162,6 +178,12 @@ export const ALL_DAYS_ROSTER: { org: string; names: string[] }[] = [
 
 export function getDaysForPerson(name: string): EventDateKey[] {
   const normalized = normalizeName(name);
+
+  for (const [personName, days] of Object.entries(PERSON_DAYS)) {
+    if (days && normalizeName(personName) === normalized) {
+      return days;
+    }
+  }
 
   if (OPENING_ONLY.some((n) => normalizeName(n) === normalized)) {
     return ["2026-06-02"];

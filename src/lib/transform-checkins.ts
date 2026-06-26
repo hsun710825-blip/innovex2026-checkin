@@ -5,6 +5,7 @@ import {
   EXHIBITION_DATE_KEYS,
   getDaysForPerson,
   normalizeName,
+  ORG_ALLOWED_DAYS,
   RECORD_OVERRIDES,
   TAIXU_EXHIBITION_ONLY,
   type EventDateKey,
@@ -84,6 +85,9 @@ function shouldIncludeOnDate(
 ): boolean {
   const days = getDaysForPerson(person.name);
   if (!days.includes(dateKey)) return false;
+
+  const orgAllowed = ORG_ALLOWED_DAYS[person.organization];
+  if (orgAllowed && !orgAllowed.includes(dateKey)) return false;
 
   if (
     EXHIBITION_DATE_KEYS.includes(dateKey) &&
